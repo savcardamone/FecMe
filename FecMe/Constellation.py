@@ -24,12 +24,10 @@ class Constellation(object):
         return "Constellation object for {0}".format(self.name)
 
     def map(self, bitstring):
-        print("Mapping for {0} constellation is unsupported.".format(self.name))
-        pass
+        raise NotImplementedError("Mapping for {0} constellation is unsupported.".format(self.name))
 
     def demap(self, constellations):
-        print("Demapping for {0} constellation is unsupported.".format(self.name))
-        pass
+        raise NotImplementedError("Demapping for {0} constellation is unsupported.".format(self.name))
 
 class QPSK(Constellation):
     """QPSK constellation class.
@@ -56,6 +54,10 @@ class QPSK(Constellation):
                 
         return constellations
 
+    def demap(self, constellations):
+        """Demap constellation points to LLRs for underlying bits.
+        """
+    
 
 if __name__ == "__main__":
 
