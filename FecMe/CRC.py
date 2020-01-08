@@ -62,7 +62,7 @@ def check(b, polynomial='CRC24A', checksum_fill=0):
     rx_crc_checksum = b[A:]
 
     # Verify whether or not the checksums match and flag to the caller
-    return False if any(crc_checksum ^ rx_crc_checksum) == 1 else True
+    return False if any(crc_checksum ^ rx_crc_checksum) == ~checksum_fill else True
     
 if __name__ == "__main__":
 
