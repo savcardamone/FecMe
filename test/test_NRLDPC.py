@@ -11,7 +11,6 @@ from FecMe.NRLDPC import NRLDPC
 class TestNRLDPC(unittest.TestCase):
     """NR LDPC Unit testing.
     """
-    
 
     def __init__(self, *args, **kwargs):
         """Class constructor. Load all the test vectors once.
@@ -22,10 +21,10 @@ class TestNRLDPC(unittest.TestCase):
     def test_1(self):
         """Test the transport block CRC against golden data.
         """
-        
         crc_bits = checksum(self.test_vectors['data_in'], polynomial='CRC24A', checksum_fill=0)
         golden_crc_bits = self.test_vectors['data_in_crc'][-24:]
-
+        self.assertEqual(crc_bits.tolist(), golden_crc_bits.tolist())
+        
     def test_2(self):
         """Test the NR LDPC encoder.
         """
