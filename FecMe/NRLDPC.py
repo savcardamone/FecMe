@@ -2,7 +2,7 @@ from math import inf
 from numpy import array, zeros, ceil, nonzero, min, where, concatenate
 from numpy.random import choice
 
-from CRC import polynomials, checksum
+from FecMe.CRC import polynomials, checksum, check
 
 class NRLDPC():
     """New Radio LDPC Encode/Decode.
@@ -14,6 +14,11 @@ class NRLDPC():
         self.A = A
         self.BGN = BGN
 
+    def __str__(self):
+        """String representation of NRLDPC object.
+        """
+        return "NRLDPC: {0} input bits, Base-Graph Number {1}".format(self.A, self.BGN)
+        
     ### ====================================================================================
     ###                                     Parameters
     ### ====================================================================================
@@ -178,7 +183,7 @@ class NRLDPC():
 
                 # If we're segmenting the transport block, each codeblock gets its own CRC checksum 
                 if self.C > 1:
-                    p = CRC.checksum(c[r,self.Kprime - self.L], polynomial='CRC24B', checksum_fill=0)
+                    p = checksum(c[r,self.Kprime - self.L], polynomial='CRC24B', checksum_fill=0)
                     # Append the checksum bits to the message bits in the codeblock
                     for k in range((self.Kprime-self.L), self.Kprime):
                         c[r,k] = p[k + self.L - self.Kprime]
@@ -207,7 +212,8 @@ class NRLDPC():
             raise ValueError("Encoder has been parameterised for {0} bits, but {1} have been passed".format(self.A, len(a)))
 
         # QQ: Not sure if this is the right polynomial. Can't find it in the spec...
-        b = concatenate((a, checksum(a, polynomial='CRC24A', checksum_fill=0)))
+        b = concatenate((a, checksum(a, polynomial='CRC24C', checksum_fill=0)))
+        print(check(b, polynomial='CRC24C', checksum_fill=0))
         # Transport block segmentation
         c = segmentation(self, b)
         # Generate parity bits for each codeblock
@@ -218,12 +224,3 @@ class NRLDPC():
         g = concatenation(self, f)
 
         return g
-
-
-if __name__ == "__main__":
-
-    A = 63
-    ldpc = NRLDPC(A)
-    a = choice([0,1], size=(A,))
-
-    ldpc.encode(a)
