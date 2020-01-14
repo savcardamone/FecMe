@@ -3,7 +3,7 @@
 ### DESCRIPTION: Verify our NR LDPC implementation against golden data
 
 import unittest
-from numpy import load
+from numpy import load, array
 
 from FecMe.CRC import checksum
 from FecMe.NRLDPC import NRLDPC
@@ -21,11 +21,19 @@ class TestNRLDPC(unittest.TestCase):
     def test_1(self):
         """Test the transport block CRC against golden data.
         """
-        crc_bits = checksum(self.test_vectors['data_in'], polynomial='CRC24A', checksum_fill=0)
-        golden_crc_bits = self.test_vectors['data_in_crc'][-24:]
-        self.assertEqual(crc_bits.tolist(), golden_crc_bits.tolist())
+        golden_crc_out = self.test_vectors['crc_out'][-24:]
+        crc_out = checksum(self.test_vectors['data_in'], polynomial='CRC24A', checksum_fill=0)
+        self.assertEqual(crc_out.tolist(), golden_crc_out.tolist())
         
     def test_2(self):
-        """Test the NR LDPC encoder.
+        """Test the NR LDPC segmentation against golden data.
         """
-        pass
+        A = len(self.test_vectors['data_in'])
+        ldpc = NRLDPC(A)
+
+        # Had to dump each codeblock into a column in MATLAB, so the codeblocks are interleaved in
+        # the numpy array. Just deinterleave them and get them into the correct format
+        golden_seg_out = array([self.test_vectors['seg_out'][::2], self.test_vectors['seg_out'][1::2]])
+        seg_out = ldpc.segmentation(self.test_vectors['crc_out'])
+        test_var = self.assertEqual(seg_out.tolist(), golden_seg_out.tolist())
+        

@@ -33,7 +33,10 @@ class NRLDPC():
     def A(self, A):
         """Setter for the number of bits in the transport block.
         """
-        self.__A = A
+        if A > 0:
+            self.__A = A
+        else:
+            raise ValueError("Number of bits for coding must be greater than zero.")
         
     @property
     def BGN(self):
@@ -61,10 +64,8 @@ class NRLDPC():
         """
         if self.BGN == 1:
             return 8448
-        elif self.BGN == 2:
-            return 3840
         else:
-            raise ValueError("Can't associate a code block size with base graph number {0}".format(self.BGN))
+            return 3840
 
     @property
     def B(self):
@@ -157,42 +158,42 @@ class NRLDPC():
     ###                                     Methods
     ### ====================================================================================
 
+    def segmentation(self, b):
+        """Segment the transport block (with attached CRC bits) into codeblocks which
+        are to be encoded separately.
+        See 38.212 Section 5.2.2. for details.
+        """
+        # Initialise our segmented codeblocks with zeros
+        c = zeros((self.C,self.K), dtype=int)
+
+        # Counter we manually increment when filling message bits
+        s = 0
+        # Loop over codeblocks we're segmenting the transport block into
+        for r in range(self.C):
+                
+            # Fill the message bits in the codeblock
+            for k in range(self.Kprime - self.L):
+                c[r,k] = b[s]
+                s += 1
+
+            # If we're segmenting the transport block, each codeblock gets its own CRC checksum 
+            if self.C > 1:
+                p = checksum(c[r,0:(self.Kprime - self.L)], polynomial='CRC24B', checksum_fill=0)
+                # Append the checksum bits to the message bits in the codeblock
+                for k in range((self.Kprime-self.L), self.Kprime):
+                    c[r,k] = p[k + self.L - self.Kprime]
+
+            # Pad the remaining bits in the codeblock with filler bits
+            for k in range(self.Kprime, self.K):
+                c[r,k] = -1
+
+        return c
+    
     def encode(self, a):
         """Take a bitstring and encode it. We return the fully rate-matched output, g, where
         all segmented code blocks are concatenated.
         See 38.212 Section 5.5 for the end point of this function.
         """
-
-        def segmentation(self, b):
-            """Segment the transport block (with attached CRC bits) into codeblocks which
-            are to be encoded separately.
-            See 38.212 Section 5.2.2. for details.
-            """
-            # Initialise our segmented codeblocks with zeros
-            c = zeros((self.C,self.K), dtype=int)
-
-            # Counter we manually increment when filling message bits
-            s = 0
-            # Loop over codeblocks we're segmenting the transport block into
-            for r in range(self.C):
-                
-                # Fill the message bits in the codeblock
-                for k in range(self.Kprime - self.L):
-                    c[r,k] = b[s]
-                    s += 1
-
-                # If we're segmenting the transport block, each codeblock gets its own CRC checksum 
-                if self.C > 1:
-                    p = checksum(c[r,self.Kprime - self.L], polynomial='CRC24B', checksum_fill=0)
-                    # Append the checksum bits to the message bits in the codeblock
-                    for k in range((self.Kprime-self.L), self.Kprime):
-                        c[r,k] = p[k + self.L - self.Kprime]
-
-                # Pad the remaining bits in the codeblock with filler bits
-                for k in range(self.Kprime, self.K):
-                    c[r,k] = -1
-
-            return c
 
         def parity(self, c):
             pass
@@ -212,10 +213,9 @@ class NRLDPC():
             raise ValueError("Encoder has been parameterised for {0} bits, but {1} have been passed".format(self.A, len(a)))
 
         # QQ: Not sure if this is the right polynomial. Can't find it in the spec...
-        b = concatenate((a, checksum(a, polynomial='CRC24C', checksum_fill=0)))
-        print(check(b, polynomial='CRC24C', checksum_fill=0))
+        b = concatenate((a, checksum(a, polynomial='CRC24A', checksum_fill=0)))
         # Transport block segmentation
-        c = segmentation(self, b)
+        c = self.segmentation(b)
         # Generate parity bits for each codeblock
         d = parity(self, c)
         # Rate matching
