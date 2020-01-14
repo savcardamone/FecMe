@@ -22,7 +22,7 @@ def checksum(a, polynomial='CRC24A', checksum_fill=0):
 
     # We have no need to consider the leading zeros in the input bitstring so
     # just hack them off right at the start
-    #a = trim_zeros(a, trim='f')
+    a = trim_zeros(a, trim='f')
 
     A = len(a)
     g = polynomials.get(polynomial)
