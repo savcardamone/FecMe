@@ -12,6 +12,7 @@ class NRLDPC():
         """
         self.A = A
         self.BGN = BGN
+        self.BG_cache = None
         self.PCM_cache = None
         
     def __str__(self):
@@ -152,23 +153,30 @@ class NRLDPC():
             return 22 * self.Zc
         else:
             return 10 * self.Zc
+
+    @property
+    def BG(self):
+        """Return the base graph from which the LDPC PCM will be constructed. If the base graph
+        hasn't yet been formed, then explicitly do so, otherwise return the cached base graph.
+        """
+        if self.BG_cache == None:
+            # Select the appropriate base graph
+            BGs = load('NRLDPC_Base_Graphs.npz')
+            self.BG_cache = BGs['NRLDPC_Base_Graph_{0}'.format(self.BGN)]
+
+        return self.BG_cache
         
     @property
     def PCM(self):
         """Return the parity check matrix (PCM) for the LDPC code. If it hasn't yet been created,
-        explicitly make it, otherwise return the cached copy we created previously.
+        explicitly make it, otherwise return the cached PCM.
         See 38.212 Section 5.3.2, Item (3) for details about construction
         """
-
         # If we don't have a PCM in cache, then explicitly construct it
-        if self.PCM_cached == None:
-
-            # Select the appropriate base graph
-            BGs = load('NRLDPC_Base_Graphs.npz')
-            base_graph = BGs['NRLDPC_Base_Graph_{0}'.format(self.BGN)]
-
-            bg_nrows = base_graph.shape[0]
-            bg_ncols = base_graph.shape[1]
+        if self.PCM_cache == None:
+            
+            bg_nrows = self.BG.shape[0]
+            bg_ncols = self.BG.shape[1]
 
             # Now our PCM cache contains something, so we won't enter this branch again
             self.PCM_cache = zeros((bg_nrows*self.Zc,bg_ncols*self.Zc), dtype=int)
@@ -180,15 +188,14 @@ class NRLDPC():
                     cols = range(icol*self.Zc,(icol+1)*self.Zc-1)
 
                     # If the base graph entry is zero, the PCM receives a null matrix
-                    if base_graph[irow,icol] == 0:
+                    if self.BG[irow,icol] == 0:
                         self.PCM_cache[rows,cols] = zeros((self.Zc,self.Zc), dtype=int)
                     # If the base graph entry is nonzero, the PCM receives a cyclically shifted
                     # identity matrix
                     else:
-                        shift = base_graph[irow,icol] % self.Zc
+                        shift = self.BG[irow,icol] % self.Zc
                         self.PCM_cache[rows,cols] = roll(identity(self.Zc, dtype=int), shift, axis=1)
 
-                    
         return self.PCM_cache
             
         
@@ -227,13 +234,18 @@ class NRLDPC():
 
         return c
     
-    def parity(self, c):
+    def parity(self, c, verify=False):
         """Encode each codeblock with the lifted base graph and return the systematic 
         codewords.
         See 38.212 Section 5.3.2. for details, although the means by which the parity bits are
         derived is not discussed.
         """
 
+        # Verify that the produced codeword spans the nullspace of the PCM if we're explicitly
+        # verifying the encoding
+        if verify == True:
+            pass
+        
         pass
 
 
