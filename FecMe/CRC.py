@@ -22,29 +22,30 @@ def checksum(a, polynomial='CRC24A', checksum_fill=0):
 
     # We have no need to consider the leading zeros in the input bitstring so
     # just hack them off right at the start
-    a = trim_zeros(a, trim='f')
-    
+    #a = trim_zeros(a, trim='f')
+
     A = len(a)
     g = polynomials.get(polynomial)
     L = len(g)
 
     # Add overflow portion to work array where the checksum will end up
     if checksum_fill == 0:
-        work = concatenate((a, zeros((L,), dtype=int)))
+        work = concatenate((a, zeros((L-1,), dtype=int)))
     elif checksum_fill == 1:
-        work = concatenate((a, ones((L,), dtype=int)))
+        work = concatenate((a, ones((L-1,),  dtype=int)))
     else:
         raise ValueError("Can't initialise the checksum with {0}s".format(checksum_fill))
 
     # Continue until all of the message part of the work array is zero
-    while any(work[0:A-1]) == 1:
+    while any(work[0:A]) == 1:
+
         # Find the leading non-zero element in the work array -- that's where we apply the
         # generator polynomial
         current_shift = argmax(work > 0)
+
         # Loop over bits in the generator polynomial and xor with bit directly above
         # in the work array
-        for ibit in range(L):
-            work[current_shift+ibit] = g[ibit] ^ work[current_shift+ibit]
+        work[range(current_shift,current_shift+L)] ^= g[:]
 
     # Return the CRC checksum
     return work[A:]
