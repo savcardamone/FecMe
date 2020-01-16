@@ -1,3 +1,4 @@
+from os.path import abspath, dirname
 from math import inf
 from numpy import array, zeros, ceil, nonzero, min, where, concatenate, load, identity, roll
 
@@ -6,7 +7,17 @@ from FecMe.CRC import polynomials, checksum, check
 class NRLDPC():
     """New Radio LDPC Encode/Decode.
     """
-    
+
+    lifting_sizes = array(
+        [[2,4,8,16,32,64,128,256],
+         [3,6,12,24,48,96,192,384],
+         [5,10,20,40,80,160,320,0],
+         [7,14,28,56,112,224,0,0],
+         [9,18,36,72,144,288,0,0],
+         [11,22,44,88,176,352,0,0],
+         [13,26,52,104,208,0,0,0],
+         [15,30,60,120,240,0,0,0]], dtype=int)
+
     def __init__(self, A, BGN=1):
         """Class constructor.
         """
@@ -124,26 +135,31 @@ class NRLDPC():
     def Zc(self):
         """Return the lifting size for the base graph.
         """
-        # Table 5.3.2-1 from 38.212
-        lifting_sizes = array(
-            [[2,4,8,16,32,64,128,256],
-             [3,6,12,24,48,96,192,384],
-             [5,10,20,40,80,160,320,0],
-             [7,14,28,56,112,224,0,0],
-             [9,18,36,72,144,288,0,0],
-             [11,22,44,88,176,352,0,0],
-             [13,26,52,104,208,0,0,0],
-             [15,30,60,120,240,0,0,0]], dtype=int)
-
+        local_lifting_sizes = NRLDPC.lifting_sizes
         # Pull out the indices whose entries don't satisfy the inequality Kb.Zc >= K'
-        sub_threshold_indices = lifting_sizes < self.Kprime / self.Kb
+        sub_threshold_indices = local_lifting_sizes < self.Kprime / self.Kb
         # Set subthreshold elements to zero
-        lifting_sizes[sub_threshold_indices] = 0
+        local_lifting_sizes[sub_threshold_indices] = 0
         # Now pull out the smallest non-zero element from the lifting sizes and that's our
         # desired lifting size
-        lifting_set, z = where(lifting_sizes == min(lifting_sizes[nonzero(lifting_sizes)]))
+        lifting_set, z = where(local_lifting_sizes == min(local_lifting_sizes[nonzero(local_lifting_sizes)]))
         
-        return int(lifting_sizes[lifting_set,z])
+        return int(local_lifting_sizes[lifting_set,z])
+
+    @property
+    def LiftingSet(self):
+        """Return the lifting set for the base graph.
+        """
+        local_lifting_sizes = NRLDPC.lifting_sizes
+        # Pull out the indices whose entries don't satisfy the inequality Kb.Zc >= K'
+        sub_threshold_indices = local_lifting_sizes < self.Kprime / self.Kb
+        # Set subthreshold elements to zero
+        local_lifting_sizes[sub_threshold_indices] = 0
+        # Now pull out the smallest non-zero element from the lifting sizes and that's our
+        # desired lifting size
+        lifting_set, z = where(local_lifting_sizes == min(local_lifting_sizes[nonzero(local_lifting_sizes)]))
+        
+        return lifting_set[0]
     
     @property
     def K(self):
@@ -159,10 +175,12 @@ class NRLDPC():
         """Return the base graph from which the LDPC PCM will be constructed. If the base graph
         hasn't yet been formed, then explicitly do so, otherwise return the cached base graph.
         """
-        if self.BG_cache == None:
+        if self.BG_cache is None:
+            # Get the path to FecMe/FecMe so we can find the npz file
+            path = abspath(dirname(__file__))
             # Select the appropriate base graph
-            BGs = load('NRLDPC_Base_Graphs.npz')
-            self.BG_cache = BGs['NRLDPC_Base_Graph_{0}'.format(self.BGN)]
+            BGs = load('{0}/NRLDPC_Base_Graphs.npz'.format(path))
+            self.BG_cache = BGs['BaseGraph{0}_LiftingSet{1}'.format(self.BGN, self.LiftingSet)]
 
         return self.BG_cache
         
@@ -173,7 +191,7 @@ class NRLDPC():
         See 38.212 Section 5.3.2, Item (3) for details about construction
         """
         # If we don't have a PCM in cache, then explicitly construct it
-        if self.PCM_cache == None:
+        if self.PCM_cache is None:
             
             bg_nrows = self.BG.shape[0]
             bg_ncols = self.BG.shape[1]
@@ -183,18 +201,16 @@ class NRLDPC():
 
             # Loop over each entry in base graph and 
             for irow in range(bg_nrows):
-                rows = range(irow*self.Zc,(irow+1)*self.Zc-1)
                 for icol in range(bg_ncols):
-                    cols = range(icol*self.Zc,(icol+1)*self.Zc-1)
 
                     # If the base graph entry is zero, the PCM receives a null matrix
                     if self.BG[irow,icol] == 0:
-                        self.PCM_cache[rows,cols] = zeros((self.Zc,self.Zc), dtype=int)
+                        self.PCM_cache[irow*self.Zc:(irow+1)*self.Zc,icol*self.Zc:(icol+1)*self.Zc] = zeros((self.Zc,self.Zc), dtype=int)
                     # If the base graph entry is nonzero, the PCM receives a cyclically shifted
                     # identity matrix
                     else:
                         shift = self.BG[irow,icol] % self.Zc
-                        self.PCM_cache[rows,cols] = roll(identity(self.Zc, dtype=int), shift, axis=1)
+                        self.PCM_cache[irow*self.Zc:(irow+1)*self.Zc,icol*self.Zc:(icol+1)*self.Zc] = roll(identity(self.Zc, dtype=int), shift, axis=1)
 
         return self.PCM_cache
             
