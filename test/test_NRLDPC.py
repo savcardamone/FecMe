@@ -37,3 +37,12 @@ class TestNRLDPC(unittest.TestCase):
         seg_out = ldpc.segmentation(self.test_vectors['crc_out'])
         test_var = self.assertEqual(seg_out.tolist(), golden_seg_out.tolist())
         
+    def test_3(self):
+        """Test the NR LDPC codeword creation against golden data.
+        """
+        pass
+
+    def test_4(self):
+        """Test the full NR LDPC encode chain against golden data.
+        """
+        pass

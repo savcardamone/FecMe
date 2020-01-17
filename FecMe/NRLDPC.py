@@ -1,6 +1,6 @@
 from os.path import abspath, dirname
 from math import inf
-from numpy import array, zeros, ceil, nonzero, min, where, concatenate, load, identity, roll
+from numpy import array, zeros, ceil, nonzero, min, where, argwhere, concatenate, load, identity, roll
 
 from FecMe.CRC import polynomials, checksum, check
 
@@ -143,23 +143,17 @@ class NRLDPC():
         # Now pull out the smallest non-zero element from the lifting sizes and that's our
         # desired lifting size
         lifting_set, z = where(local_lifting_sizes == min(local_lifting_sizes[nonzero(local_lifting_sizes)]))
-        
-        return int(local_lifting_sizes[lifting_set,z])
 
+        return int(local_lifting_sizes[lifting_set,z])
+        
     @property
     def LiftingSet(self):
         """Return the lifting set for the base graph.
         """
         local_lifting_sizes = NRLDPC.lifting_sizes
-        # Pull out the indices whose entries don't satisfy the inequality Kb.Zc >= K'
-        sub_threshold_indices = local_lifting_sizes < self.Kprime / self.Kb
-        # Set subthreshold elements to zero
-        local_lifting_sizes[sub_threshold_indices] = 0
-        # Now pull out the smallest non-zero element from the lifting sizes and that's our
-        # desired lifting size
-        lifting_set, z = where(local_lifting_sizes == min(local_lifting_sizes[nonzero(local_lifting_sizes)]))
-        
-        return lifting_set[0]
+        lifting_set = argwhere(local_lifting_sizes == self.Zc)[0][0]
+
+        return int(lifting_set)
     
     @property
     def K(self):
