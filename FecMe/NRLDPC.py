@@ -1,6 +1,7 @@
 from os.path import abspath, dirname
 from math import inf
 from numpy import array, zeros, ceil, nonzero, min, where, argwhere, concatenate, load, identity, roll
+import numpy as np
 
 from FecMe.CRC import polynomials, checksum, check
 
@@ -250,7 +251,30 @@ class NRLDPC():
         See 38.212 Section 5.3.2. for details, although the means by which the parity bits are
         derived is not discussed.
         """
+        for r in range(self.C):
 
+            # Extract the codeblock and reshape to a matrix where all rows are lifted segments
+            segs = c[r,:].reshape((-1,self.Zc))
+            # Turn all filler bits to zeros so we don't mess up the encoding
+            segs[segs < 0] = 0
+
+            # Explicitly zero our core parity sections
+            temp_parity = np.zeros((4,self.Zc), dtype=int)
+            core_parity = np.zeros((4,self.Zc), dtype=int)
+
+            # Loop over the "information section" of the base graph, i.e. the first Kb columns
+            for j in range(self.Kb):
+                # Loop over the core parity sections and construct from the information columns
+                for i_core in range(4):
+                    bg_value = self.BG(i_core,j)
+                    if bg_value >= 0:
+                        temp_parity[i_core,:] += np.roll(segs.reshape((1,self.Zc)), -(bg_value % self.Zc))
+
+            if self.BGN == 1:
+                core_parity[0,:] = np.sum(temp_parity, axis=0)
+                
+            else:
+            
         # Verify that the produced codeword spans the nullspace of the PCM if we're explicitly
         # verifying the encoding
         if verify == True:
